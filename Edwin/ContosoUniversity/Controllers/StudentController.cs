@@ -76,13 +76,14 @@ namespace ContosoUniversity.Controllers
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
             Student student = await db.Students.FindAsync(id);
-            Mapper.CreateMap<Student, StudentViewModel>();
-            StudentViewModel studentVM = Mapper.Map<StudentViewModel>(student);
-
             if (student == null)
             {
                 return HttpNotFound();
             }
+
+            Mapper.CreateMap<Student, StudentViewModel>();
+            StudentViewModel studentVM = Mapper.Map<StudentViewModel>(student);
+
             return View(studentVM);
         }
 
