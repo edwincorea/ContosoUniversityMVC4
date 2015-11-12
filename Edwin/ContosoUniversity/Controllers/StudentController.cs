@@ -1,11 +1,14 @@
-﻿using System.Data;
+﻿using System;
+using System.Linq;
+using System.Data;
 using System.Data.Entity;
 using System.Threading.Tasks;
 using System.Net;
 using System.Web.Mvc;
+using AutoMapper;
+using PagedList;
 using ContosoUniversity.DAL;
 using ContosoUniversity.Models;
-using AutoMapper;
 using ContosoUniversity.ViewModels;
 
 namespace ContosoUniversity.Controllers
@@ -15,9 +18,49 @@ namespace ContosoUniversity.Controllers
         private SchoolContext db = new SchoolContext();
 
         // GET: Student
-        public async Task<ActionResult> Index()
+        public async Task<ActionResult> Index(string sortOrder, string currentFilter, string searchString, int? page)
         {
-            return View(await db.Students.ToListAsync());
+            ViewBag.CurrentSort = sortOrder;
+            ViewBag.NameSortParm = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
+            ViewBag.DateSortParm = sortOrder == "Date" ? "date_desc" : "Date";
+
+            if (searchString != null)
+            {
+                page = 1;
+            }
+            else
+            {
+                searchString = currentFilter;
+            }
+
+            ViewBag.CurrentFilter = searchString;
+
+            var students = from s in db.Students
+                           select s;
+            if (!String.IsNullOrEmpty(searchString))
+            {
+                students = students.Where(s => s.LastName.ToUpper().Contains(searchString.ToUpper())
+                                       || s.FirstMidName.ToUpper().Contains(searchString.ToUpper()));
+            }
+            switch (sortOrder)
+            {
+                case "name_desc":
+                    students = students.OrderByDescending(s => s.LastName);
+                    break;
+                case "Date":
+                    students = students.OrderBy(s => s.EnrollmentDate);
+                    break;
+                case "date_desc":
+                    students = students.OrderByDescending(s => s.EnrollmentDate);
+                    break;
+                default:  // Name ascending 
+                    students = students.OrderBy(s => s.LastName);
+                    break;
+            }
+
+            int pageSize = 3;
+            int pageNumber = (page ?? 1);
+            return View(await students.ToPagedListAsync(pageNumber, pageSize));
         }
 
         // GET: Student/Details/5
@@ -135,8 +178,10 @@ namespace ContosoUniversity.Controllers
         {
             try
             {
-                Student student = await db.Students.FindAsync(id);
-                db.Students.Remove(student);
+                //Student student = await db.Students.FindAsync(id);
+                //db.Students.Remove(student);
+                Student studentToDelete = new Student() { StudentID = id };
+                db.Entry(studentToDelete).State = EntityState.Deleted;
                 await db.SaveChangesAsync();
             }
             catch (DataException dex)
